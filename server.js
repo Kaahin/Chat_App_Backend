@@ -27,7 +27,7 @@ const io = new Server(httpServer, {
 });
 
 const configuration = new Configuration({
-  apiKey: "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",
+  apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
@@ -76,8 +76,4 @@ io.on("connection", (socket) => {
     // Transmitt message to client
     io.emit("reply", msg);
   });
-
-  //   socket.on("disconnect", () => {
-  //     console.log("user disconnected");
-  //   });
 });
