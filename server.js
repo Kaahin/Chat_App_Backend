@@ -66,7 +66,7 @@ io.on("connection", (socket) => {
       user: {
         _id: "Openai",
         name: "GPT3",
-        avatar: "https://placeimg.com/140/140/any",
+        avatar: "https://placeimg.com/140/140/tech",
       },
     };
     console.log(msg);
