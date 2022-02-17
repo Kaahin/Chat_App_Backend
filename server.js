@@ -31,8 +31,6 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-console.log(process.env.OPENAI_API_KEY);
-
 // BROADCASTING
 httpServer.listen(PORT, () => {
   console.log(`listening on *:${PORT}`);
