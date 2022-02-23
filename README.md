@@ -4,3 +4,5 @@
 # 2. choose arbitrary port number
 # And put in a .env file using following variabels
 # OPENAI_API _KEY resp PORT
+
+# Todo: Setup mongo database for registered user
