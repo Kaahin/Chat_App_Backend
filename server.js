@@ -20,13 +20,15 @@ const User = require("./model/User");
 const bcrypt = require("bcryptjs");
 // jsonwebtoken
 const jwt = require("jsonwebtoken"); // importerar jsonwebtoken
-const req = require("express/lib/request");
-
+// cors
+const cors = require("cors");
+const { REPL_MODE_SLOPPY } = require("repl");
 // CREATE INSTANCES
 // env
 const PORT = process.env.PORT || 3 * process.env.PORT;
 // express
 const app = express();
+// app.use(cors());
 // socket.IO
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -56,68 +58,59 @@ httpServer.listen(PORT, () => {
   console.log(`listening on *:${PORT}`);
 });
 
+app.get("/signup", async (req, res) => {
+  console.log(req.query);
+  // if existing user
+  const emailExist = await User.findOne({ email: req.query.email });
+
+  if (emailExist) {
+    return res.status(400).json({ error: "Email Already in Use" });
+  }
+
+  // Hash Password
+  const salt = await bcrypt.genSalt(10); // Här skapar vi en algoritm för hur säker vår lösen ska vara
+  const hashPassword = await bcrypt.hash(req.query.password, salt);
+
+  // Create user!
+  const user = new User({
+    first: req.query.first,
+    last: req.query.last,
+    email: req.query.email,
+    password: hashPassword,
+  });
+
+  try {
+    const savedUser = await user.save(); // detta sparar User i databasen
+    console.log(savedUser);
+    const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
+    res.json({ user: user._id, token }); // skickar detta information till frontend.
+  } catch (error) {
+    res.status(400).json(error);
+  }
+});
+
+app.get("/signin", async (req, res) => {
+  // if existing email
+  const user = await User.findOne({ email: req.query.email });
+
+  if (!user) {
+    return res.status(400).json({ error: "Email is not found" });
+  }
+
+  // Password correct?
+  const validPassword = await bcrypt.compare(req.query.password, user.password);
+
+  if (!validPassword) {
+    return res.status(400).json({ error: "Invalid password" });
+  }
+
+  // create and assign token.
+  const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET); // skapar en token för att skicka till frontend
+  res.header("auth-token", token).json({ token }); //Här
+});
+
 io.on("connection", (socket) => {
   console.log("new client connected");
-
-  // Sign in request from client
-  socket.on("signin", async ({ first, email, password }, reply) => {
-    // Check if email exists in database
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      io.emit("signin-reply", { error: "Email is not found" });
-    }
-
-    // Check if password is correct
-    const validPassword = await bcrypt.compare(password, user.password);
-
-    if (!validPassword) {
-      io.emit("signin-reply", { error: "Invalid password" });
-    }
-
-    // Create and assign token.
-    const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-
-    io.emit("signin-reply", { "auth-token": token });
-  });
-
-  // Sign up request from client
-  socket.on("signup", async ({ first, last, email, password }) => {
-    console.log(first);
-    // Check if user exists already
-    const emailExist = await User.findOne({ email });
-
-    if (emailExist) {
-      io.emit("signup-reply", {
-        error: ` User with an email: ${email} already exists`,
-      });
-    }
-
-    // Hash Password
-    const salt = await bcrypt.genSalt(10); // Här skapar vi en algoritm för hur säker vår lösen ska vara
-    const hashPassword = await bcrypt.hash(password, salt);
-
-    // Create new user!
-    const user = new User({
-      first,
-      last,
-      email,
-      hashPassword,
-    });
-
-    console.log(user);
-    try {
-      // Save user to database
-      await user.save();
-      console.log(user);
-      // Jwt signing inorder get token
-      const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-      console.log(user._id);
-      io.emit("signup-reply", { user: user._id, token });
-    } catch (error) {
-      io.emit("signup-reply", error);
-    }
-  });
 
   // Receives message from client
   socket.on("request", async ({ _id, createdAt, text, user }) => {
